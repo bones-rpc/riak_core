@@ -90,6 +90,9 @@ get_stat(Stat) ->
     Pid = riak_core_stat_calc_sup:calc_proc(Stat),
     riak_core_stat_calc_proc:value(Pid).
 
+err2unavailable({error, _, _}) -> unavailable;
+err2unavailable(Other) -> Other.
+
 %% Encapsulate getting a stat value from folsom.
 %%
 %% If for any reason we can't get a stats value
@@ -100,20 +103,20 @@ get_stat(Stat) ->
 calc_stat({Name, gauge}) ->
     try
         GaugeVal = folsom_metrics:get_metric_value(Name),
-        calc_gauge(GaugeVal)
+        err2unavailable(calc_gauge(GaugeVal))
     catch ErrClass:ErrReason ->
             log_error(Name, ErrClass, ErrReason),
             unavailable
     end;
 calc_stat({Name, histogram}) ->
     try
-        folsom_metrics:get_histogram_statistics(Name)
+        err2unavailable(folsom_metrics:get_histogram_statistics(Name))
     catch ErrClass:ErrReason ->
             log_error(Name, ErrClass, ErrReason),
             unavailable
     end;
 calc_stat({Name, _Type}) ->
-    try folsom_metrics:get_metric_value(Name)
+    try err2unavailable(folsom_metrics:get_metric_value(Name))
     catch ErrClass:ErrReason ->
             log_error(Name, ErrClass, ErrReason),
             unavailable
